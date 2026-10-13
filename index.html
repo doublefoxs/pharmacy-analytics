@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pharmacy Queue Analytics Engine</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f4f0;color:#2c2c2a;min-height:100vh}
+
+/* ── Upload screen ── */
+#upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.upload-card{background:#fff;border:0.5px solid #d3d1c7;border-radius:16px;padding:2.5rem 3rem;max-width:520px;width:100%;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.upload-icon{font-size:40px;margin-bottom:1rem}
+.upload-card h1{font-size:20px;font-weight:500;margin-bottom:6px}
+.upload-card p{font-size:13px;color:#888780;margin-bottom:1.5rem;line-height:1.6}
+.drop-zone{border:1.5px dashed #d3d1c7;border-radius:10px;padding:2rem;cursor:pointer;transition:all .2s;margin-bottom:1rem;background:#fafaf8}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#534AB7;background:#f5f4ff}
+.drop-zone p{font-size:13px;color:#888780;margin-top:8px}
+.drop-zone .dz-icon{font-size:28px}
+.file-btn{font-size:13px;padding:8px 20px;background:#2c2c2a;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-top:4px}
+.file-btn:hover{background:#534AB7}
+#file-input{display:none}
+.req-cols{text-align:left;font-size:11.5px;color:#5f5e5a;background:#f5f4f0;border-radius:8px;padding:.75rem 1rem;margin-top:1rem;line-height:1.8}
+.req-cols strong{color:#2c2c2a}
+.error-msg{font-size:12px;color:#c0392b;background:#fdecea;border-radius:6px;padding:.5rem .75rem;margin-top:.75rem;display:none}
+
+/* ── Dashboard ── */
+#dashboard{display:none;padding:1.25rem}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.dash-header h1{font-size:18px;font-weight:500}
+.dash-header .meta{font-size:12px;color:#888780}
+.reload-btn{font-size:12px;padding:5px 12px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;color:#5f5e5a;cursor:pointer}
+.reload-btn:hover{background:#f0efea}
+
+/* ── Tabs ── */
+.tab-nav{display:flex;gap:0;margin-bottom:16px;border-bottom:1.5px solid #d3d1c7}
+.tab-nav button{font-size:13px;padding:8px 20px;border:none;background:transparent;color:#888780;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;font-weight:400;transition:all .15s}
+.tab-nav button.active{color:#2c2c2a;border-bottom-color:#2c2c2a;font-weight:500}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* ── KPIs ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;padding:.85rem 1rem}
+.kl{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.kv{font-size:24px;font-weight:500}
+.ks{font-size:11px;color:#888780;margin-top:3px}
+.red{color:#c0392b}.grn{color:#1D9E75}.amb{color:#a05a00}.pur{color:#534AB7}
+
+/* ── Filter bar ── */
+.filter-bar{background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;padding:.85rem 1.1rem;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.04em;font-weight:500}
+.fg select{font-size:12px;padding:5px 8px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fafaf8;color:#2c2c2a;cursor:pointer;min-width:130px}
+.rbtn{font-size:12px;padding:5px 12px;border:0.5px solid #d3d1c7;border-radius:6px;background:transparent;color:#5f5e5a;cursor:pointer}
+.rbtn:hover{background:#f0efea}
+.badge{font-size:11px;background:#f0efea;border-radius:5px;padding:3px 8px;color:#5f5e5a;align-self:center;margin-left:auto}
+
+/* ── Charts ── */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.card{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:1rem 1.25rem;min-width:0}
+.full{grid-column:1/-1}
+.cl{font-size:11px;font-weight:500;color:#5f5e5a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.legend{display:flex;gap:14px;font-size:11px;color:#888780;margin-bottom:8px;flex-wrap:wrap}
+.ld{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.ll{display:inline-block;width:16px;height:2px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.w{position:relative;height:220px}
+.wlg{position:relative;height:240px}
+
+/* ── Metric toggle ── */
+.mtab-row{display:flex;gap:6px;margin-bottom:10px}
+.mtab{font-size:12px;padding:4px 14px;border-radius:20px;border:0.5px solid #d3d1c7;background:transparent;color:#5f5e5a;cursor:pointer}
+.mtab.active{background:#2c2c2a;color:#fff;border-color:#2c2c2a}
+.long-wait-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.long-wait-summary{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin:-2px 0 12px}
+.long-wait-value{font-size:30px;font-weight:600;color:#534AB7;line-height:1.1}
+.long-wait-detail{font-size:12px;color:#888780}
+.long-wait-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 12px}
+.lw-group-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:.04em;font-weight:500}
+.lw-group{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer}
+.lw-group input{accent-color:#534AB7}
+.lw-chart-scroll{overflow-x:auto;max-width:100%}
+.lw-chart-inner{position:relative;height:300px;min-width:100%}
+.arrival-wait-controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:4px 0 8px}
+.arrival-wait-summary{font-size:12px;color:#888780;margin-bottom:8px}
+.arrival-wait-chart-wrap{position:relative;height:320px}
+
+/* ── Context banner ── */
+.context{font-size:12px;background:#fff8e6;border:0.5px solid #e8d5a0;border-radius:8px;padding:.65rem .9rem;margin-bottom:14px;line-height:1.6;color:#4a3f00}
+
+/* ── Tables ── */
+.tbl-wrap{overflow-x:auto;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+th{font-size:10.5px;color:#888780;text-transform:uppercase;letter-spacing:.04em;padding:5px 8px;border-bottom:0.5px solid #e8e6df;text-align:left;font-weight:500;white-space:nowrap}
+td{padding:6px 8px;border-bottom:0.5px solid #f0efea;white-space:nowrap}
+.tf td{font-weight:500;background:#fafaf8;border-bottom:none}
+.pill{display:inline-block;padding:1px 6px;border-radius:20px;font-size:10.5px}
+.pg{background:#e6f5f0;color:#1a7a58}.pa{background:#fdf3e3;color:#a05a00}.pr{background:#fdecea;color:#c0392b}
+
+/* ── Loading ── */
+#loading{display:none;position:fixed;inset:0;background:rgba(245,244,240,.92);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #d3d1c7;border-top-color:#534AB7;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{font-size:13px;color:#5f5e5a}
+
+@media (max-width: 1000px) and (min-width: 701px){
+  .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+}
+@media(max-width:700px){
+  #dashboard{padding:1rem}
+  .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .full{grid-column:1}
+  .long-wait-card-head{flex-direction:column;gap:4px}
+  .lw-chart-inner{height:260px}
+  .arrival-wait-chart-wrap{height:300px}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading"><div class="spinner"></div><p>Processing your data…</p></div>
+
+<!-- Upload screen -->
+<div id="upload-screen">
+  <div class="upload-card">
+    <div class="upload-icon">💊</div>
+    <h1>Pharmacy Queue Analytics</h1>
+    <p>Upload a queue log CSV and get a full interactive dashboard — monthly trends, daily patterns, time-of-day analysis, and evening shift breakdown — automatically.</p>
+
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="dz-icon">📂</div>
+      <p>Drop your CSV here or click to browse</p>
+    </div>
+    <input type="file" id="file-input" accept=".csv">
+
+    <div class="req-cols">
+      <strong>Required columns</strong><br>
+      <code>Arrival Time</code> — datetime (dd/mm/yy, h:mm am/pm)<br>
+      <code>Time Served</code> — datetime or <code>-</code> for unserved<br><br>
+      <strong>Recognised optional columns</strong><br>
+      Ticket · Processing Time · Wait Time · Counter · Status · Processing Type
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+</div>
+
+<!-- Dashboard (hidden until data loaded) -->
+<div id="dashboard">
+  <div class="dash-header">
+    <div>
+      <h1>Pharmacy Queue Dashboard</h1>
+      <div class="meta" id="dash-meta"></div>
+    </div>
+    <button class="reload-btn" onclick="resetToUpload()">↩ Load new file</button>
+  </div>
+
+  <div class="tab-nav">
+    <button class="active" onclick="switchTab('main',this)">Overall Dashboard</button>
+    <button onclick="switchTab('evening',this)">Evening Analysis (5pm – 9pm)</button>
+  </div>
+
+  <!-- MAIN TAB -->
+  <div id="tab-main" class="tab-pane active">
+    <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+      <div class="kpi"><p class="kl">Total arrivals</p><p class="kv" id="k-arrivals">—</p><p class="ks" id="k-arrivals-sub">filtered</p></div>
+      <div class="kpi"><p class="kl">Median</p><p class="kv pur" id="k-median">—</p><p class="ks" id="k-median-sub">arrival → served</p></div>
+      <div class="kpi"><p class="kl">Average</p><p class="kv pur" id="k-avg">—</p><p class="ks" id="k-avg-sub">arrival → served</p></div>
+      <div class="kpi"><p class="kl">Worst day of week</p><p class="kv amb" id="k-worst-dow">—</p><p class="ks" id="k-worst-dow-sub">highest avg wait</p></div>
+      <div class="kpi"><p class="kl">Worst hour of day</p><p class="kv amb" id="k-worst-hr">—</p><p class="ks" id="k-worst-hr-sub">highest avg wait</p></div>
+      <div class="kpi"><p class="kl">% waiting &gt; 60 min</p><p class="kv red" id="k-over60">—</p><p class="ks" id="k-over60-sub">of completed visits</p></div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="fg"><label>Month</label><select id="f-month"><option value="">All months</option></select></div>
+      <div class="fg"><label>Day of week</label>
+        <select id="f-dow">
+          <option value="">All days</option>
+          <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+          <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+        </select>
+      </div>
+      <div class="fg"><label>Time of day</label>
+        <select id="f-hour">
+          <option value="">All hours</option>
+          <option value="7">7am</option><option value="8">8am</option><option value="9">9am</option>
+          <option value="10">10am</option><option value="11">11am</option><option value="12">12pm</option>
+          <option value="13">1pm</option><option value="14">2pm</option><option value="15">3pm</option>
+          <option value="16">4pm</option><option value="17">5pm</option><option value="18">6pm</option>
+          <option value="19">7pm</option><option value="20">8pm</option><option value="21">9pm+</option>
+        </select>
+      </div>
+      <button class="rbtn" onclick="resetFilters()">Reset</button>
+      <span class="badge" id="badge">— completed visits</span>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <p class="cl">Total arrivals by month</p>
+        <div class="legend">
+          <span><span class="ld" style="background:#1D9E75"></span>Served</span>
+          <span><span class="ld" style="background:#e8e6df;border:0.5px solid #d3d1c7"></span>Not served</span>
+        </div>
+        <div class="w"><canvas id="cArr"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="cl">Service completion rate (%)</p>
+        <div class="w"><canvas id="cRate"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="cl">Arrival → served time by month (min)</p>
+        <div class="legend">
+          <span><span class="ld" style="background:#378ADD"></span>Avg</span>
+          <span><span class="ll" style="background:#1D9E75"></span>Median</span>
+          <span><span class="ll" style="background:#BA7517"></span>75th pct</span>
+        </div>
+        <div class="w"><canvas id="cMoTime"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="cl">Arrival → served time by day of week (min)</p>
+        <div class="legend">
+          <span><span class="ld" style="background:#378ADD"></span>Avg</span>
+          <span><span class="ll" style="background:#1D9E75"></span>Median</span>
+          <span><span class="ll" style="background:#BA7517"></span>75th pct</span>
+        </div>
+        <div class="w"><canvas id="cDowTime"></canvas></div>
+      </div>
+      <div class="card full">
+        <p class="cl">Arrival → served time by time of day (min)</p>
+        <div class="legend">
+          <span><span class="ld" style="background:#378ADD"></span>Avg</span>
+          <span><span class="ll" style="background:#1D9E75"></span>Median</span>
+          <span><span class="ll" style="background:#BA7517"></span>75th pct</span>
+        </div>
+        <div class="wlg"><canvas id="cHrTime"></canvas></div>
+      </div>
+      <div class="card full" id="long-wait-card">
+        <div class="long-wait-card-head">
+          <div>
+            <p class="cl">Patients waiting over threshold</p>
+            <div class="long-wait-summary">
+              <span class="long-wait-value" id="long-wait-value">—</span>
+              <span class="long-wait-detail" id="long-wait-detail">of served patients</span>
+            </div>
+          </div>
+          <div class="mtab-row" role="group" aria-label="Wait-time threshold">
+            <button type="button" class="mtab active" data-threshold="45" aria-pressed="true" onclick="setLongWaitThreshold(45,this)">Over 45 min</button>
+            <button type="button" class="mtab" data-threshold="60" aria-pressed="false" onclick="setLongWaitThreshold(60,this)">Over 60 min</button>
+          </div>
+        </div>
+        <div class="long-wait-controls" role="group" aria-label="Chart grouping">
+          <span class="lw-group-label">Group chart by</span>
+          <label class="lw-group"><input type="checkbox" class="lw-group-check" value="month" checked> Month</label>
+          <label class="lw-group"><input type="checkbox" class="lw-group-check" value="dow"> Day of week</label>
+          <label class="lw-group"><input type="checkbox" class="lw-group-check" value="hour"> Hour of day</label>
+        </div>
+        <p class="ks" id="long-wait-caption">Select one or more dimensions; combinations are grouped together. Existing dashboard filters apply.</p>
+        <div class="lw-chart-scroll"><div class="lw-chart-inner" id="long-wait-chart-inner"><canvas id="long-wait-chart"></canvas></div></div>
+      </div>
+      <div class="card full" id="arrival-wait-card">
+        <p class="cl">Hourly arrivals and patient wait time</p>
+        <div class="arrival-wait-controls">
+          <div class="fg"><label for="aw-month">Month / year</label><select id="aw-month"><option value="">All months</option></select></div>
+          <div class="fg"><label for="aw-dow">Day of week</label>
+            <select id="aw-dow">
+              <option value="">All days</option>
+              <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+              <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+            </select>
+          </div>
+        </div>
+        <p class="arrival-wait-summary" id="arrival-wait-summary">Arrival bars include all visits; wait-time lines use served patients only.</p>
+        <div class="arrival-wait-chart-wrap"><canvas id="arrival-wait-chart"></canvas></div>
+      </div>
+      <div class="card full">
+        <p class="cl">Monthly summary table</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Month</th><th>Arrivals</th><th>Served</th><th>Not served</th>
+              <th>Rate</th><th>Avg (min)</th><th>Median</th><th>P75</th><th>vs prev</th>
+            </tr></thead>
+            <tbody id="tBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /main tab -->
+
+  <!-- EVENING TAB -->
+  <div id="tab-evening" class="tab-pane">
+    <div class="context">
+      <strong>Evening window (5pm – 9pm):</strong> Isolates patients who arrived between 17:00 and 20:59. Use this tab to assess the impact of evening staffing changes. The most recent month in your data is highlighted in purple; the month with the worst average is highlighted in amber.
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><p class="kl">Latest month avg (eve)</p><p class="kv pur" id="ek-avg">—</p><p class="ks" id="ek-avg-sub"></p></div>
+      <div class="kpi"><p class="kl">Best vs worst avg</p><p class="kv grn" id="ek-delta">—</p><p class="ks" id="ek-delta-sub"></p></div>
+      <div class="kpi"><p class="kl">Latest month p75 (eve)</p><p class="kv" id="ek-p75">—</p><p class="ks" id="ek-p75-sub"></p></div>
+      <div class="kpi"><p class="kl">Latest completion rate</p><p class="kv" id="ek-rate">—</p><p class="ks" id="ek-rate-sub"></p></div>
+    </div>
+    <div class="grid">
+      <div class="card full">
+        <p class="cl">Avg, median & p75 — evening arrivals by month</p>
+        <div class="legend">
+          <span><span class="ld" style="background:#378ADD"></span>Avg</span>
+          <span><span class="ll" style="background:#1D9E75"></span>Median</span>
+          <span><span class="ll" style="background:#BA7517"></span>75th pct</span>
+          <span><span class="ld" style="background:#534AB7;width:14px;height:14px;border-radius:3px"></span>Latest month</span>
+        </div>
+        <div class="wlg"><canvas id="eOverall"></canvas></div>
+      </div>
+      <div class="card full">
+        <p class="cl">Wait time by hour of evening — month comparison</p>
+        <div class="mtab-row" id="metricTabs">
+          <button class="mtab active" onclick="switchMetric('avg',this)">Avg</button>
+          <button class="mtab" onclick="switchMetric('med',this)">Median</button>
+          <button class="mtab" onclick="switchMetric('p75',this)">P75</button>
+        </div>
+        <div class="legend">
+          <span><span class="ll" style="background:#534AB7;height:3px"></span>Latest month</span>
+          <span><span class="ll" style="background:#D85A30"></span>Worst month</span>
+          <span><span class="ll" style="background:#b4b2a9"></span>Other months</span>
+        </div>
+        <div class="wlg"><canvas id="eByHour"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="cl">Evening completion rate by month</p>
+        <div class="w"><canvas id="eRate"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="cl">Evening patient volume by month</p>
+        <div class="w"><canvas id="eVol"></canvas></div>
+      </div>
+      <div class="card full">
+        <p class="cl">Hour-by-hour breakdown &nbsp;<span style="font-size:10px;font-weight:400;color:#888780;text-transform:none;letter-spacing:0">p75 colour: green &lt;30m · amber 30–45m · red &gt;45m</span></p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Month</th><th>Eve arrivals</th><th>Served</th><th>Rate</th><th>Avg</th><th>Median</th><th>P75</th>
+              <th>5pm avg</th><th>5pm p75</th><th>6pm avg</th><th>6pm p75</th>
+              <th>7pm avg</th><th>7pm p75</th><th>8pm avg</th><th>8pm p75</th>
+            </tr></thead>
+            <tbody id="eveBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /evening tab -->
+</div><!-- /dashboard -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PARSING ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+function parseDateTime(s) {
+  if (!s || s.trim() === '-') return null;
+  s = s.trim();
+  // Try multiple formats
+  const fmts = [
+    // dd/mm/yy, h:mm am/pm
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+(\d{1,2}):(\d{2})\s*(am|pm)$/i,
+  ];
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (!m) return null;
+  let [,day,mo,yr,hr,mn,ap] = m;
+  day=+day; mo=+mo-1; yr=+yr; hr=+hr; mn=+mn;
+  if (yr < 100) yr += 2000;
+  if (ap.toLowerCase()==='pm' && hr!==12) hr+=12;
+  if (ap.toLowerCase()==='am' && hr===12) hr=0;
+  const d = new Date(yr, mo, day, hr, mn);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function parseCSV(text) {
+  // Handle quoted fields
+  const lines = [];
+  const re = /("(?:[^""]|"")*"|[^,\n\r]*)/g;
+  let row = [], match;
+  const rows_raw = text.split(/\r?\n/);
+  return rows_raw.map(line => {
+    const cells = [];
+    let inQ = false, cell = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cells.push(cell.trim()); cell = ''; }
+      else { cell += c; }
+    }
+    cells.push(cell.trim());
+    return cells;
+  });
+}
+
+// Detect which column index maps to which field
+function detectColumns(headers) {
+  const h = headers.map(x => x.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const find = (...keys) => {
+    for (const k of keys) {
+      const i = h.findIndex(x => x.includes(k));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  return {
+    arrivalIdx:  find('arrivaltime','arrival'),
+    servedIdx:   find('timeserved','served'),
+    ticketIdx:   find('ticket','id'),
+    counterIdx:  find('counter'),
+    statusIdx:   find('status'),
+    procTypeIdx: find('processingtype','type'),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA PROCESSING RULES
+// ═══════════════════════════════════════════════════════════════
+
+const MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const HR_LABELS = ['12a','1a','2a','3a','4a','5a','6a','7a','8a','9a','10a','11a','12p','1p','2p','3p','4p','5p','6p','7p','8p','9p','10p','11p'];
+
+// State
+let STATIC = {};   // static monthly totals (all arrivals)
+let RAW = [];      // served records with diff: [monthStr, dow, hour, diff]
+let MONTHS = [];   // sorted month strings
+let EVE = [];      // evening data per month
+
+function processData(rows, cols) {
+  const monthMap={}, rawRecords=[], allRecords=[];
+
+  for(let i=1;i<rows.length;i++){
+    const row=rows[i];
+    if(row.length<2 || !row[cols.arrivalIdx]) continue;
+
+    const arr=parseDateTime(row[cols.arrivalIdx]);
+    if(!arr) continue;
+
+    const srv=parseDateTime(cols.servedIdx>=0 ? row[cols.servedIdx] : '-');
+    const monthStr=MONTH_ORDER[arr.getMonth()]+' '+arr.getFullYear();
+    const dow=arr.getDay()===0 ? 6 : arr.getDay()-1;
+    const hour=arr.getHours();
+
+    if(!monthMap[monthStr]) monthMap[monthStr]={arrivals:0,served:0,unserved:0};
+    monthMap[monthStr].arrivals++;
+
+    let diff=null;
+    if(srv){
+      const d=(srv-arr)/60000;
+      if(d>=0 && d<=300) diff=Math.round(d*10)/10;
+    }
+
+    allRecords.push([monthStr,dow,hour,diff]);
+
+    if(diff!==null){
+      monthMap[monthStr].served++;
+      rawRecords.push([monthStr,dow,hour,diff]);
+    }else{
+      monthMap[monthStr].unserved++;
+    }
+  }
+
+  const sorted=Object.keys(monthMap).sort((a,b)=>{
+    const [ma,ya]=a.split(' '),[mb,yb]=b.split(' ');
+    if(+ya!==+yb)return +ya-+yb;
+    return MONTH_ORDER.indexOf(ma)-MONTH_ORDER.indexOf(mb);
+  });
+
+  const staticMonths={};
+  sorted.forEach(m=>{
+    const s=monthMap[m];
+    const diffs=rawRecords.filter(r=>r[0]===m).map(r=>r[3]).sort((a,b)=>a-b);
+    staticMonths[m]={
+      ...s,
+      rate:s.arrivals ? Math.round(s.served/s.arrivals*1000)/10 : 0,
+      avg:diffs.length ? Math.round(diffs.reduce((a,b)=>a+b,0)/diffs.length*10)/10 : null,
+      med:diffs.length ? Math.round(pct(diffs,.5)*10)/10 : null,
+      p75:diffs.length ? Math.round(pct(diffs,.75)*10)/10 : null
+    };
+  });
+
+  const eveData=sorted.map(m=>{
+    const all=rawRecords.filter(r=>r[0]===m && r[2]>=17 && r[2]<=20);
+    const allArrivals=allRecords.filter(r=>r[0]===m && r[2]>=17 && r[2]<=20);
+    const diffs=all.map(r=>r[3]).sort((a,b)=>a-b);
+
+    const hrStats=[17,18,19,20].map(h=>{
+      const hd=all.filter(r=>r[2]===h).map(r=>r[3]).sort((a,b)=>a-b);
+      return {
+        avg:hd.length ? Math.round(hd.reduce((a,b)=>a+b,0)/hd.length*10)/10 : null,
+        med:hd.length ? Math.round(pct(hd,.5)*10)/10 : null,
+        p75:hd.length ? Math.round(pct(hd,.75)*10)/10 : null,
+        n:hd.length
+      };
+    });
+
+    return {
+      month:m,n:allArrivals.length,served:diffs.length,
+      rate:allArrivals.length ? Math.round(diffs.length/allArrivals.length*1000)/10 : null,
+      avg:diffs.length ? Math.round(diffs.reduce((a,b)=>a+b,0)/diffs.length*10)/10 : null,
+      med:diffs.length ? Math.round(pct(diffs,.5)*10)/10 : null,
+      p75:diffs.length ? Math.round(pct(diffs,.75)*10)/10 : null,
+      hrs:hrStats
+    };
+  });
+
+  return {months:sorted,staticMonths,rawRecords,allRecords,eveData};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHART HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function pct(arr, p) {
+  const s = [...arr].sort((a,b)=>a-b);
+  return s[Math.min(Math.floor(s.length*p), s.length-1)];
+}
+function calcStats(vals) {
+  if (!vals.length) return {avg:null,med:null,p75:null};
+  return {
+    avg: Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10,
+    med: Math.round(pct(vals,.5)*10)/10,
+    p75: Math.round(pct(vals,.75)*10)/10,
+  };
+}
+function safeTip(ctx) {
+  const v = ctx.parsed.y;
+  return (v===null||v===undefined) ? null : ctx.dataset.label+': '+v.toFixed(1)+' min';
+}
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false,
+  interaction:{mode:'index',intersect:false},
+  plugins:{legend:{display:false}, tooltip:{filter:i=>i.parsed.y!==null, callbacks:{label:safeTip}}},
+  scales:{
+    x:{ticks:{font:{size:11},color:'#888780',autoSkip:false,maxRotation:0},grid:{display:false}},
+    y:{ticks:{font:{size:11},color:'#888780',callback:v=>v+'m'},grid:{color:'rgba(0,0,0,.06)'},min:0}
+  }
+};
+function timeChart(id, labels, avgs, meds, p75s, bClr, brClr) {
+  return new Chart(document.getElementById(id), {
+    data:{labels, datasets:[
+      {type:'bar', label:'Avg', data:avgs, backgroundColor:bClr||'rgba(55,138,221,0.18)', borderColor:brClr||'#378ADD', borderWidth:1.5, borderRadius:4, spanGaps:false},
+      {type:'line', label:'Median', data:meds, borderColor:'#1D9E75', pointBackgroundColor:'#1D9E75', tension:.3, pointRadius:3, borderWidth:2, backgroundColor:'transparent', spanGaps:false},
+      {type:'line', label:'75th pct', data:p75s, borderColor:'#BA7517', pointBackgroundColor:'#BA7517', tension:.3, pointRadius:3, borderWidth:2, borderDash:[5,4], backgroundColor:'transparent', spanGaps:false}
+    ]},
+    options: baseOpts
+  });
+}
+function p75Color(v) {
+  return v >= 45 ? '#c0392b' : v >= 30 ? '#a05a00' : '#1a7a58';
+}
+function shortLabel(m) {
+  const [mo, yr] = m.split(' ');
+  return mo+" '"+yr.slice(2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD RENDER
+// ═══════════════════════════════════════════════════════════════
+
+let C = {}, EC = {};
+let activeMetric = 'avg';
+let longWaitChart = null;
+let longWaitThreshold = 45;
+let arrivalWaitChart = null;
+
+function getFiltered() {
+  const mo=document.getElementById('f-month').value;
+  const dw=document.getElementById('f-dow').value;
+  const hr=document.getElementById('f-hour').value;
+
+  return ALL_RECORDS.filter(r=>{
+    if(mo && r[0]!==mo) return false;
+    if(dw!=='' && r[1]!==+dw) return false;
+    if(hr!==''){
+      const h=+hr;
+      if(h===21){ if(r[2]<21) return false; }
+      else if(r[2]!==h) return false;
+    }
+    return true;
+  });
+}
+
+function setLongWaitThreshold(minutes,btn){
+  longWaitThreshold=minutes;
+  document.querySelectorAll('#long-wait-card .mtab').forEach(x=>{
+    const active=Number(x.dataset.threshold)===minutes;
+    x.classList.toggle('active',active);
+    x.setAttribute('aria-pressed',active?'true':'false');
+  });
+  if(typeof ALL_RECORDS!=='undefined' && ALL_RECORDS.length)buildMain();
+}
+
+function buildLongWaitCard(filteredArrivals){
+  const served=filteredArrivals.filter(r=>r[3]!==null);
+  const over=served.filter(r=>r[3]>longWaitThreshold).length;
+  const rate=served.length?Math.round(over/served.length*1000)/10:null;
+  document.getElementById('long-wait-value').textContent=rate===null?'—':rate+'%';
+  document.getElementById('long-wait-detail').textContent=served.length
+    ?`${over.toLocaleString()} of ${served.length.toLocaleString()} served patients waited over ${longWaitThreshold} min`
+    :'No served patients match the current filters';
+
+  const dimensions=[...document.querySelectorAll('.lw-group-check:checked')].map(x=>x.value);
+  const buckets=new Map();
+  served.forEach(r=>{
+    const values=dimensions.map(dim=>dim==='month'?r[0]:dim==='dow'?r[1]:r[2]);
+    const key=JSON.stringify(values);
+    if(!buckets.has(key))buckets.set(key,{values,served:0,over:0});
+    const bucket=buckets.get(key);
+    bucket.served++;
+    if(r[3]>longWaitThreshold)bucket.over++;
+  });
+  const dimOrder={month:0,dow:1,hour:2};
+  const entries=[...buckets.values()].sort((a,b)=>{
+    for(let i=0;i<dimensions.length;i++){
+      const dim=dimensions[i];
+      const av=a.values[i],bv=b.values[i];
+      const cmp=dim==='month'?MONTHS.indexOf(av)-MONTHS.indexOf(bv):av-bv;
+      if(cmp)return cmp;
+    }
+    return 0;
+  });
+  const labels=entries.map(entry=>dimensions.length?entry.values.map((v,i)=>{
+    const dim=dimensions[i];
+    return dim==='month'?shortLabel(v):dim==='dow'?DOW_NAMES[v]:HR_LABELS[v];
+  }).join(' · '):'All filtered visits');
+  if(!entries.length)labels.push('No served patients');
+  const values=entries.map(b=>Math.round(b.over/b.served*1000)/10);
+  if(!entries.length)values.push(null);
+  const detail=entries.map(b=>`${b.over} of ${b.served} served patients`);
+  if(!entries.length)detail.push('No served patients');
+
+  const chartViewport=document.querySelector('.lw-chart-scroll').clientWidth;
+  document.getElementById('long-wait-chart-inner').style.width=`${Math.max(chartViewport,entries.length*58)}px`;
+  document.getElementById('long-wait-caption').textContent=dimensions.length
+    ?`Percentage of served patients waiting over ${longWaitThreshold} minutes, grouped by ${dimensions.map(d=>d==='dow'?'day of week':d==='hour'?'hour of day':d).join(' + ')}.`
+    :`Overall percentage of served patients waiting over ${longWaitThreshold} minutes for the current filters.`;
+  if(longWaitChart)longWaitChart.destroy();
+  longWaitChart=new Chart(document.getElementById('long-wait-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:`Over ${longWaitThreshold} min`,data:values,backgroundColor:'rgba(83,74,183,0.22)',borderColor:'#534AB7',borderWidth:1.5,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y===null?'—':ctx.parsed.y.toFixed(1)+'%'} · ${detail[ctx.dataIndex]}`}}},
+      scales:{x:{ticks:{font:{size:11},color:'#888780',autoSkip:true,maxTicksLimit:18,maxRotation:45,minRotation:0},grid:{display:false}},
+        y:{min:0,max:100,ticks:{font:{size:11},color:'#888780',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.06)'}}}}
+  });
+}
+
+function buildArrivalWaitCard(){
+  const month=document.getElementById('aw-month').value;
+  const dow=document.getElementById('aw-dow').value;
+  const rows=ALL_RECORDS.filter(r=>(!month||r[0]===month)&&(dow===''||r[1]===Number(dow)));
+  const arrivalCounts=Array(24).fill(0);
+  const waits=Array.from({length:24},()=>[]);
+  rows.forEach(r=>{
+    arrivalCounts[r[2]]++;
+    if(r[3]!==null)waits[r[2]].push(r[3]);
+  });
+  const avgWait=waits.map(a=>a.length?Math.round(a.reduce((sum,v)=>sum+v,0)/a.length*10)/10:null);
+  const medianWait=waits.map(a=>a.length?Math.round(pct(a,.5)*10)/10:null);
+  const servedCount=waits.reduce((sum,a)=>sum+a.length,0);
+  document.getElementById('arrival-wait-summary').textContent=
+    `${rows.length.toLocaleString()} arrivals in selected period · ${servedCount.toLocaleString()} served patients included in wait-time averages. Global dashboard filters do not affect this card.`;
+
+  if(arrivalWaitChart)arrivalWaitChart.destroy();
+  arrivalWaitChart=new Chart(document.getElementById('arrival-wait-chart'),{
+    type:'bar',
+    data:{labels:HR_LABELS,datasets:[
+      {type:'bar',label:'Arrivals',data:arrivalCounts,yAxisID:'yArrivals',backgroundColor:'rgba(55,138,221,0.2)',borderColor:'#378ADD',borderWidth:1,borderRadius:3,order:3},
+      {type:'line',label:'Average wait',data:avgWait,yAxisID:'yWait',borderColor:'#534AB7',pointBackgroundColor:'#534AB7',tension:.25,pointRadius:3,borderWidth:2,spanGaps:false,order:1},
+      {type:'line',label:'Median wait',data:medianWait,yAxisID:'yWait',borderColor:'#1D9E75',pointBackgroundColor:'#1D9E75',tension:.25,pointRadius:3,borderWidth:2,borderDash:[5,3],spanGaps:false,order:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,position:'bottom',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='Arrivals'
+          ?`Arrivals: ${ctx.parsed.y}`
+          :`${ctx.dataset.label}: ${ctx.parsed.y===null?'—':ctx.parsed.y.toFixed(1)+' min'}`}}},
+      scales:{x:{ticks:{font:{size:10},color:'#888780',autoSkip:true,maxTicksLimit:12,maxRotation:0},grid:{display:false}},
+        yArrivals:{type:'linear',position:'left',beginAtZero:true,title:{display:true,text:'Number of arrivals',color:'#888780',font:{size:11}},ticks:{precision:0,color:'#888780',font:{size:10}},grid:{color:'rgba(0,0,0,.06)'}},
+        yWait:{type:'linear',position:'right',beginAtZero:true,title:{display:true,text:'Wait before service (min)',color:'#888780',font:{size:11}},ticks:{color:'#888780',font:{size:10},callback:v=>v+'m'},grid:{drawOnChartArea:false}}}}
+  });
+}
+
+function buildMain(){
+  const filteredArrivals=getFiltered();
+  const data=filteredArrivals.filter(r=>r[3]!==null);
+  const arrivalCount=filteredArrivals.length;
+
+  document.getElementById('badge').textContent =
+    arrivalCount.toLocaleString()+' arrivals · '+data.length.toLocaleString()+' served';
+
+  // KPIs use the same filtered arrival population.
+  const diffs=data.map(r=>r[3]).sort((a,b)=>a-b);
+  const n=diffs.length;
+  const medVal=n ? Math.round(pct(diffs,.5)*10)/10 : null;
+  const avgVal=n ? Math.round(diffs.reduce((a,b)=>a+b,0)/n*10)/10 : null;
+  const over60=n ? diffs.filter(d=>d>60).length : 0;
+  const over60p=n ? Math.round(over60/n*1000)/10 : null;
+
+  const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dwBuckets=Array.from({length:7},()=>[]);
+  data.forEach(r=>dwBuckets[r[1]].push(r[3]));
+  const dwAvgs=dwBuckets.map(a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null);
+  const validDw=dwAvgs.map((v,i)=>({v,i})).filter(x=>x.v!==null);
+  const worstDow=validDw.length?validDw.reduce((a,b)=>b.v>a.v?b:a):null;
+
+  const hrBuckets=Array.from({length:24},()=>[]);
+  data.forEach(r=>hrBuckets[r[2]].push(r[3]));
+  const hrAvgs=hrBuckets.map(a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null);
+  const validHr=hrAvgs.map((v,i)=>({v,i})).filter(x=>x.v!==null);
+  const worstHr=validHr.length?validHr.reduce((a,b)=>b.v>a.v?b:a):null;
+  const fmtHr=h=>h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
+
+  document.getElementById('k-arrivals').textContent=arrivalCount.toLocaleString();
+  document.getElementById('k-arrivals-sub').textContent='records matching filter';
+
+  document.getElementById('k-median').textContent=medVal!==null?medVal+' min':'—';
+  document.getElementById('k-median-sub').textContent=n?n.toLocaleString()+' served patients':'no served data';
+
+  document.getElementById('k-avg').textContent=avgVal!==null?avgVal+' min':'—';
+  document.getElementById('k-avg-sub').textContent=n?'arrival → served (filtered)':'no served data';
+
+  document.getElementById('k-worst-dow').textContent=worstDow?DOW_FULL[worstDow.i]:'—';
+  document.getElementById('k-worst-dow-sub').textContent=worstDow?'avg '+Math.round(worstDow.v)+' min':'no served data';
+
+  document.getElementById('k-worst-hr').textContent=worstHr?fmtHr(worstHr.i):'—';
+  document.getElementById('k-worst-hr-sub').textContent=worstHr?'avg '+Math.round(worstHr.v)+' min':'no served data';
+
+  document.getElementById('k-over60').textContent=over60p!==null?over60p+'%':'—';
+  document.getElementById('k-over60-sub').textContent=n?over60.toLocaleString()+' of '+n.toLocaleString()+' served patients':'no served data';
+  buildLongWaitCard(filteredArrivals);
+  buildArrivalWaitCard();
+
+  // Existing charts remain available. Their monthly volume view uses the month filter;
+  // their wait-time series uses the currently filtered served records.
+  const moF=document.getElementById('f-month').value;
+  const mKeys=moF?[moF]:MONTHS;
+  const mLbls=mKeys.map(shortLabel);
+  const srvA=mKeys.map(m=>STATIC[m]?.served||0);
+  const unsA=mKeys.map(m=>STATIC[m]?.unserved||0);
+  const ratA=mKeys.map(m=>STATIC[m]?.rate||0);
+  const arrA=mKeys.map(m=>STATIC[m]?.arrivals||0);
+
+  const moG=Object.fromEntries(MONTHS.map(m=>[m,[]]));
+  const dwG=Array.from({length:7},()=>[]);
+  const hrG=Array.from({length:24},()=>[]);
+  data.forEach(r=>{
+    if(moG[r[0]])moG[r[0]].push(r[3]);
+    dwG[r[1]].push(r[3]);
+    hrG[r[2]].push(r[3]);
+  });
+
+  const mA=[],mM=[],mP=[];
+  MONTHS.forEach(m=>{const s=calcStats(moG[m]);mA.push(s.avg);mM.push(s.med);mP.push(s.p75);});
+  const dA=[],dM=[],dP=[];
+  dwG.forEach(a=>{const s=calcStats(a);dA.push(s.avg);dM.push(s.med);dP.push(s.p75);});
+  const hA=[],hM=[],hP=[];
+  hrG.forEach(a=>{const s=calcStats(a);hA.push(s.avg);hM.push(s.med);hP.push(s.p75);});
+
+  const maxD=Math.max(...dA.filter(v=>v!==null),0);
+  const maxH=Math.max(...hA.filter(v=>v!==null),0);
+  const dBar=dA.map(v=>v===maxD?'rgba(83,74,183,0.22)':'rgba(55,138,221,0.18)');
+  const dBrd=dA.map(v=>v===maxD?'#534AB7':'#378ADD');
+  const hBar=hA.map(v=>v===maxH?'rgba(83,74,183,0.22)':'rgba(55,138,221,0.18)');
+
+  Object.values(C).forEach(c=>c.destroy());
+
+  C.arr=new Chart(document.getElementById('cArr'),{
+    type:'bar',
+    data:{labels:mLbls,datasets:[
+      {label:'Served',data:srvA,backgroundColor:'#1D9E75',borderRadius:0,stack:'a'},
+      {label:'Not served',data:unsA,backgroundColor:'#e8e6df',stack:'a'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{afterBody:items=>[
+        'Total: '+arrA[items[0].dataIndex].toLocaleString(),
+        'Rate: '+ratA[items[0].dataIndex]+'%'
+      ]}}},
+      scales:{x:{ticks:{font:{size:11},color:'#888780'},grid:{display:false}},
+        y:{ticks:{font:{size:11},color:'#888780'},grid:{color:'rgba(0,0,0,.06)'},stacked:true}}
+    }
+  });
+
+  C.rate=new Chart(document.getElementById('cRate'),{
+    type:'line',
+    data:{labels:mLbls,datasets:[{label:'Rate',data:ratA,borderColor:'#534AB7',
+      backgroundColor:'rgba(83,74,183,0.08)',pointBackgroundColor:'#534AB7',
+      tension:.3,pointRadius:5,borderWidth:2,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
+      scales:{x:{ticks:{font:{size:11},color:'#888780'},grid:{display:false}},
+        y:{min:0,max:100,ticks:{font:{size:11},color:'#888780',callback:v=>v+'%'},
+          grid:{color:'rgba(0,0,0,.06)'}}}}
+  });
+
+  C.mo=timeChart('cMoTime',MONTHS.map(shortLabel),mA,mM,mP);
+  C.dow=timeChart('cDowTime',DOW_NAMES,dA,dM,dP,dBar,dBrd);
+  C.hr=timeChart('cHrTime',HR_LABELS,hA,hM,hP,hBar);
+
+  const tbody=document.getElementById('tBody');
+  tbody.innerHTML='';
+  let tA=0,tS=0,tN=0;
+  MONTHS.forEach((m,i)=>{
+    const s=STATIC[m];
+    tA+=s.arrivals;tS+=s.served;tN+=s.unserved;
+    const rc=s.rate>=80?'pg':s.rate>=70?'pa':'pr';
+    const p75c=s.p75?p75Color(s.p75):'#888780';
+    const prev=i>0?STATIC[MONTHS[i-1]]:null;
+    const mom=prev?(s.arrivals>prev.arrivals?'▲ ':'▼ ')+Math.abs(s.arrivals-prev.arrivals):'—';
+    tbody.innerHTML+=`<tr>
+      <td>${m}</td><td>${s.arrivals.toLocaleString()}</td><td>${s.served.toLocaleString()}</td>
+      <td>${s.unserved.toLocaleString()}</td><td><span class="pill ${rc}">${s.rate}%</span></td>
+      <td>${s.avg!==null?s.avg+'m':'—'}</td><td>${s.med!==null?s.med+'m':'—'}</td>
+      <td style="color:${p75c};font-weight:500">${s.p75!==null?s.p75+'m':'—'}</td><td>${mom}</td>
+    </tr>`;
+  });
+  tbody.innerHTML+=`<tr class="tf">
+    <td>Total</td><td>${tA.toLocaleString()}</td><td>${tS.toLocaleString()}</td>
+    <td>${tN.toLocaleString()}</td><td>${tA?Math.round(tS/tA*1000)/10:0}%</td>
+    <td>—</td><td>—</td><td>—</td><td>—</td>
+  </tr>`;
+}
+
+function buildEvening(){
+  const eve=EVE;
+  if(!eve.length)return;
+
+  const latest=eve[eve.length-1];
+  const valid=eve.filter(x=>x.avg!==null);
+  const worst=valid.length?valid.reduce((a,b)=>b.avg>a.avg?b:a):null;
+  const best=valid.length?valid.reduce((a,b)=>b.avg<a.avg?b:a):null;
+
+  document.getElementById('ek-avg').textContent=latest.avg!==null?latest.avg+' min':'—';
+  document.getElementById('ek-avg-sub').textContent=latest.month;
+  document.getElementById('ek-delta').textContent=best&&worst?Math.round((worst.avg-best.avg)*10)/10+' min':'—';
+  document.getElementById('ek-delta-sub').textContent=best&&worst?best.month+' best · '+worst.month+' worst':'';
+  document.getElementById('ek-p75').textContent=latest.p75!==null?latest.p75+' min':'—';
+  document.getElementById('ek-p75-sub').textContent=latest.month;
+  document.getElementById('ek-rate').textContent=latest.rate!==null?latest.rate+'%':'—';
+  document.getElementById('ek-rate-sub').textContent=latest.month;
+
+  Object.values(EC).forEach(c=>c.destroy());
+  EC={};
+
+  const labels=eve.map(x=>shortLabel(x.month));
+  EC.overall=new Chart(document.getElementById('eOverall'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'Avg',data:eve.map(x=>x.avg),backgroundColor:'rgba(55,138,221,0.18)',borderColor:'#378ADD',borderWidth:1.5,borderRadius:4},
+      {type:'line',label:'Median',data:eve.map(x=>x.med),borderColor:'#1D9E75',pointBackgroundColor:'#1D9E75',tension:.3,pointRadius:3,borderWidth:2},
+      {type:'line',label:'75th pct',data:eve.map(x=>x.p75),borderColor:'#BA7517',pointBackgroundColor:'#BA7517',tension:.3,pointRadius:3,borderWidth:2,borderDash:[5,4]}
+    ]},options:baseOpts
+  });
+
+  const latestIndex=eve.length-1;
+  const worstIndex=worst?eve.indexOf(worst):-1;
+  const datasets=eve.map((m,i)=>{
+    const clr=i===latestIndex?'#534AB7':i===worstIndex?'#D85A30':'#b4b2a9';
+    const width=i===latestIndex||i===worstIndex?3:1.2;
+    return {label:shortLabel(m.month),
+      data:m.hrs.map(h=>h[activeMetric==='avg'?'avg':activeMetric==='med'?'med':'p75']),
+      borderColor:clr,pointBackgroundColor:clr,tension:.3,
+      pointRadius:i===latestIndex||i===worstIndex?3:2,borderWidth:width,backgroundColor:'transparent'};
+  });
+  EC.byHour=new Chart(document.getElementById('eByHour'),{
+    type:'line',data:{labels:['5pm','6pm','7pm','8pm'],datasets},options:baseOpts
+  });
+
+  EC.rate=new Chart(document.getElementById('eRate'),{
+    type:'line',data:{labels,datasets:[{label:'Rate',data:eve.map(x=>x.rate),borderColor:'#534AB7',
+      backgroundColor:'rgba(83,74,183,0.08)',pointBackgroundColor:'#534AB7',tension:.3,pointRadius:5,borderWidth:2,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
+      scales:{x:{ticks:{font:{size:11},color:'#888780'},grid:{display:false}},
+      y:{min:0,max:100,ticks:{font:{size:11},color:'#888780',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.06)'}}}}
+  });
+
+  EC.vol=new Chart(document.getElementById('eVol'),{
+    type:'bar',data:{labels,datasets:[{label:'Arrivals',data:eve.map(x=>x.n),
+      backgroundColor:'#e8e6df',borderColor:'#d3d1c7',borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:11},color:'#888780'},grid:{display:false}},
+      y:{beginAtZero:true,ticks:{font:{size:11},color:'#888780'},grid:{color:'rgba(0,0,0,.06)'}}}}
+  });
+
+  const eb=document.getElementById('eveBody');
+  eb.innerHTML='';
+  eve.forEach(m=>{
+    const cell=(v,key='avg')=>{
+      const x=v?v[key]:null;
+      return x===null||x===undefined?'—':x+'m';
+    };
+    const vals=m.hrs;
+    eb.innerHTML+=`<tr><td>${m.month}</td><td>${m.n.toLocaleString()}</td><td>${m.served.toLocaleString()}</td>
+      <td>${m.rate!==null?m.rate+'%':'—'}</td><td>${m.avg!==null?m.avg+'m':'—'}</td>
+      <td>${m.med!==null?m.med+'m':'—'}</td><td style="color:${m.p75!==null?p75Color(m.p75):'#888780'}">${m.p75!==null?m.p75+'m':'—'}</td>
+      <td>${cell(vals[0])}</td><td style="color:${vals[0]?.p75!=null?p75Color(vals[0].p75):'#888780'}">${cell(vals[0],'p75')}</td>
+      <td>${cell(vals[1])}</td><td style="color:${vals[1]?.p75!=null?p75Color(vals[1].p75):'#888780'}">${cell(vals[1],'p75')}</td>
+      <td>${cell(vals[2])}</td><td style="color:${vals[2]?.p75!=null?p75Color(vals[2].p75):'#888780'}">${cell(vals[2],'p75')}</td>
+      <td>${cell(vals[3])}</td><td style="color:${vals[3]?.p75!=null?p75Color(vals[3].p75):'#888780'}">${cell(vals[3],'p75')}</td></tr>`;
+  });
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-nav button').forEach(x=>x.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function switchMetric(metric,btn){
+  activeMetric=metric;
+  document.querySelectorAll('#metricTabs .mtab').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  buildEvening();
+}
+
+function populateFilters(){
+  const sel=document.getElementById('f-month');
+  sel.innerHTML='<option value="">All months</option>';
+  MONTHS.forEach(m=>sel.innerHTML+=`<option value="${m}">${m}</option>`);
+  const awMonth=document.getElementById('aw-month');
+  awMonth.innerHTML='<option value="">All months</option>';
+  MONTHS.forEach(m=>awMonth.innerHTML+=`<option value="${m}">${m}</option>`);
+  awMonth.value='';
+  document.getElementById('aw-dow').value='';
+  ['f-month','f-dow','f-hour'].forEach(id=>document.getElementById(id).addEventListener('change',buildMain));
+}
+
+function resetFilters(){
+  document.getElementById('f-month').value='';
+  document.getElementById('f-dow').value='';
+  document.getElementById('f-hour').value='';
+  buildMain();
+}
+
+function resetToUpload(){
+  Object.values(C).forEach(c=>c.destroy());
+  Object.values(EC).forEach(c=>c.destroy());
+  if(longWaitChart){longWaitChart.destroy();longWaitChart=null;}
+  if(arrivalWaitChart){arrivalWaitChart.destroy();arrivalWaitChart=null;}
+  C={};EC={};RAW=[];ALL_RECORDS=[];MONTHS=[];EVE=[];STATIC={};
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('upload-screen').style.display='flex';
+  document.getElementById('file-input').value='';
+  document.getElementById('error-msg').style.display='none';
+}
+
+function showError(msg){
+  const el=document.getElementById('error-msg');
+  el.textContent=msg;el.style.display='block';
+}
+
+function loadCSV(text,name){
+  const rows=parseCSV(text).filter(r=>r.some(c=>c.trim()!==''));
+  if(rows.length<2){showError('The CSV appears to contain no data rows.');return;}
+
+  const cols=detectColumns(rows[0]);
+  if(cols.arrivalIdx<0){showError('Could not find an Arrival Time column.');return;}
+  if(cols.servedIdx<0){showError('Could not find a Time Served column.');return;}
+
+  document.getElementById('loading').style.display='flex';
+  setTimeout(()=>{
+    try{
+      const result=processData(rows,cols);
+      STATIC=result.staticMonths;RAW=result.rawRecords;ALL_RECORDS=result.allRecords;
+      MONTHS=result.months;EVE=result.eveData;
+
+      if(!MONTHS.length){showError('No valid arrival records were found.');return;}
+
+      populateFilters();
+      document.getElementById('dash-meta').textContent=
+        `${name} · ${ALL_RECORDS.length.toLocaleString()} arrival records · ${RAW.length.toLocaleString()} served`;
+      document.getElementById('upload-screen').style.display='none';
+      document.getElementById('dashboard').style.display='block';
+      buildMain();buildEvening();
+    }catch(err){
+      console.error(err);showError('Could not process this CSV: '+err.message);
+    }finally{
+      document.getElementById('loading').style.display='none';
+    }
+  },50);
+}
+
+const fileInput=document.getElementById('file-input');
+const dropZone=document.getElementById('drop-zone');
+['aw-month','aw-dow'].forEach(id=>document.getElementById(id).addEventListener('change',buildArrivalWaitCard));
+document.querySelectorAll('.lw-group-check').forEach(input=>input.addEventListener('change',()=>{
+  if(typeof ALL_RECORDS!=='undefined' && ALL_RECORDS.length)buildMain();
+}));
+
+fileInput.addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>loadCSV(ev.target.result,file.name);
+  reader.readAsText(file);
+});
+
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('drag-over');
+  const file=e.dataTransfer.files[0];if(!file)return;
+  if(!file.name.toLowerCase().endsWith('.csv')){showError('Please drop a CSV file.');return;}
+  const reader=new FileReader();
+  reader.onload=ev=>loadCSV(ev.target.result,file.name);
+  reader.readAsText(file);
+});
+
+</script>
+</body>
+</html>
